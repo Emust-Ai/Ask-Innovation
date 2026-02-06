@@ -14,16 +14,16 @@ RUN npm ci --only=production
 COPY . .
 
 # Expose port
-EXPOSE 3004
+EXPOSE 3017
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV PORT=3004
+ENV PORT=3017
 ENV HOST=0.0.0.0
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3004/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3017/health || exit 1
 
 # Start the application
 CMD ["node", "src/server.js"]
