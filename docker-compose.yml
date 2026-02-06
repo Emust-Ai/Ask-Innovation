@@ -3,7 +3,7 @@ version: '3.8'
 services:
   voice-agent:
     build: .
-    container_name: voice-agent
+    container_name: ask-voice-ai
     restart:  always
     ports:
       - "3017:3017"
