@@ -84,7 +84,7 @@ export function handleTwilioWebSocket(connection, logger) {
         input_audio_transcription: {
           model: 'whisper-1',
           language: 'fr',
-          prompt: 'Ceci est une conversation téléphonique avec un service client pour bornes de recharge véhicules électriques. Vocabulaire fréquent: bonjour, oui, non, merci, s\'il vous plaît, je voudrais, j\'ai besoin, problème, aide, recharger, charger, ma voiture, mon véhicule, borne de recharge, station de recharge, connecteur, prise, câble, RFID, badge, carte, application, app, wattzhub, ev24, Carrefour, relais, Paris, Lyon, Marseille, Bordeaux. Numéros: un, deux, trois, quatre, cinq, six, sept, huit, neuf, dix. Questions courantes: comment ça marche, ça ne fonctionne pas, c\'est en panne, je n\'arrive pas à, pouvez-vous m\'aider.'
+          prompt: 'Transcription exacte. Ne pas inventer de texte. Vocabulaire: Ask Innovation, email, téléphone, entreprise, tickets, support client.'
         }
       }
     };
@@ -102,6 +102,11 @@ export function handleTwilioWebSocket(connection, logger) {
     const { name, arguments: argsString, call_id } = toolCall;
     
     logger.info(`Tool call received: ${name} with call_id: ${call_id}`);
+    
+    // Mark demo request for urgent priority in Chatwoot
+    if (name === 'priority_tool' && chatwootLogger) {
+      chatwootLogger.markDemoRequest();
+    }
     
     try {
       const args = JSON.parse(argsString);
@@ -347,14 +352,20 @@ export function handleTwilioWebSocket(connection, logger) {
         break;
 
       case 'error':
-        logger.error({ 
-          error: message.error,
-          type: message.error?.type,
-          code: message.error?.code,
-          message: message.error?.message,
-          param: message.error?.param,
-          event_id: message.error?.event_id
-        }, 'OpenAI error occurred');
+        const errorMessage = message.error?.message || 'Unknown error';
+        // Filter out non-critical errors
+        if (errorMessage.includes('Cancellation failed') || errorMessage.includes('no active response')) {
+          logger.debug('Non-critical OpenAI error (can be ignored):', errorMessage);
+        } else {
+          logger.error({ 
+            error: message.error,
+            type: message.error?.type,
+            code: message.error?.code,
+            message: message.error?.message,
+            param: message.error?.param,
+            event_id: message.error?.event_id
+          }, 'OpenAI error occurred');
+        }
         break;
 
       default:

@@ -28,11 +28,18 @@ class ChatwootLogger {
     
     this.chatwootConversationId = null;
     this.humanEscalationRequested = false; // Track if human agent was requested
+    this.demoRequested = false; // Track if demo was requested
   }
 
   // Mark that human escalation was requested
   markHumanEscalation() {
     this.humanEscalationRequested = true;
+  }
+
+  // Mark that a demo was requested
+  markDemoRequest() {
+    this.demoRequested = true;
+    console.log('🎯 Demo requested - will mark as URGENT');
   }
 
   // Log user message
@@ -233,7 +240,7 @@ class ChatwootLogger {
         inbox_id: parseInt(this.chatwootInboxId),
         contact_id: String(contactId),
         status: 'open',
-        priority: this.humanEscalationRequested ? 'urgent' : null,
+        priority: (this.humanEscalationRequested || this.demoRequested) ? 'urgent' : null,
         additional_attributes: {}
       };
       console.log(`📦 Payload:`, JSON.stringify(conversationPayload, null, 2));
@@ -349,13 +356,13 @@ class ChatwootLogger {
           messages: [
             {
               role: 'system',
-              content: `Tu es un assistant qui crée des résumés concis de conversations téléphoniques pour une équipe de support client EV24 (bornes de recharge électrique).
+              content: `Tu es un assistant qui crée des résumés concis de conversations pour l'équipe commerciale d'Ask Innovation (solutions IA pour le support client).
 
 Génère un résumé bref et actionnable en français avec:
-- 🎯 Motif de l'appel (1 ligne)
-- 📋 Problème/Demande du client (1-2 lignes)  
-- ✅ Ce qui a été fait par l'assistant (1-2 lignes)
-- ⚠️ Action requise (si le client a demandé un rappel humain ou si un problème reste non résolu)
+- 🎯 Intérêt du prospect (1 ligne)
+- 📋 Problème/Besoin identifié (1-2 lignes)
+- 📧 Informations collectées (email, nom, entreprise, téléphone si disponibles)
+- ⚠️ Action requise (si une démo est demandée ou un suivi nécessaire)
 
 Sois concis - maximum 5-6 lignes au total.`
             },
@@ -391,44 +398,46 @@ Sois concis - maximum 5-6 lignes au total.`
     const userMessages = this.messages.filter(m => m.role === 'user').map(m => m.text.toLowerCase());
     const allText = this.messages.map(m => m.text.toLowerCase()).join(' ');
     
-    // Detect what the user needed
+    // Detect prospect interest/need for lead collection
     let userNeed = '';
-    if (allText.includes('humain') || allText.includes('agent') || allText.includes('parler')) {
-      userNeed = 'Demande de parler à un agent humain';
-    } else if (allText.includes('panne') || allText.includes('marche pas') || allText.includes('problème') || allText.includes('erreur')) {
-      userNeed = 'Signalement d\'un problème technique';
-    } else if (allText.includes('station') || allText.includes('borne')) {
-      userNeed = 'Question sur une borne de recharge';
-    } else if (allText.includes('rfid') || allText.includes('badge') || allText.includes('carte')) {
-      userNeed = 'Question sur carte RFID/badge';
-    } else if (allText.includes('paiement') || allText.includes('facture')) {
-      userNeed = 'Question sur paiement/facturation';
-    } else if (allText.includes('compte') || allText.includes('inscription')) {
-      userNeed = 'Question sur son compte';
+    if (allText.includes('démo') || allText.includes('démonstration')) {
+      userNeed = 'Demande de démonstration';
+    } else if (allText.includes('prix') || allText.includes('tarif') || allText.includes('coût')) {
+      userNeed = 'Question sur les tarifs';
+    } else if (allText.includes('ticket') || allText.includes('surcharge') || allText.includes('volume')) {
+      userNeed = 'Problème de volume de tickets';
+    } else if (allText.includes('chatbot') || allText.includes('ia') || allText.includes('automatisation')) {
+      userNeed = 'Intérêt pour solutions IA/chatbot';
+    } else if (allText.includes('intégration') || allText.includes('zendesk') || allText.includes('hubspot') || allText.includes('crm')) {
+      userNeed = 'Question sur les intégrations';
+    } else if (allText.includes('humain') || allText.includes('agent') || allText.includes('parler')) {
+      userNeed = 'Demande de contact humain';
+    } else if (allText.includes('support') || allText.includes('client')) {
+      userNeed = 'Intérêt pour support client IA';
     } else {
-      userNeed = 'Demande d\'assistance générale';
+      userNeed = 'Exploration des solutions Ask Innovation';
     }
     
     // Detect what was done
     let actionDone = '';
-    if (allText.includes('recontacter') || allText.includes('rappel')) {
-      actionDone = 'Demande de rappel enregistrée';
-    } else if (allText.includes('vérifié') || allText.includes('vérification')) {
-      actionDone = 'Vérification effectuée';
-    } else if (allText.includes('résolu') || allText.includes('réglé')) {
-      actionDone = 'Problème résolu';
+    if (allText.includes('email') || allText.includes('@')) {
+      actionDone = 'Email collecté';
+    } else if (allText.includes('rendez-vous') || allText.includes('meeting') || allText.includes('réserver')) {
+      actionDone = 'Rendez-vous proposé';
+    } else if (allText.includes('recontacter') || allText.includes('rappel')) {
+      actionDone = 'Suivi demandé';
     } else {
       actionDone = 'Informations fournies';
     }
     
-    // Check if human callback was requested
-    const humanRequested = allText.includes('humain') || allText.includes('rappel') || allText.includes('recontacter');
+    // Check if follow-up needed
+    const followUpNeeded = allText.includes('démo') || allText.includes('prix') || allText.includes('rappel') || allText.includes('recontacter');
     
-    let summary = `📋 Besoin: ${userNeed}\n`;
+    let summary = `📋 Intérêt: ${userNeed}\n`;
     summary += `✅ Action: ${actionDone}`;
     
-    if (humanRequested) {
-      summary += `\n⚠️ Rappel humain demandé`;
+    if (followUpNeeded) {
+      summary += `\n⚠️ Suivi commercial requis`;
     }
     
     return summary;
@@ -520,9 +529,10 @@ Sois concis - maximum 5-6 lignes au total.`
     // Send to Chatwoot
     const result = await this.sendToChatwoot();
     
-    // If human escalation was requested, toggle priority to urgent
-    if (result.success && this.chatwootConversationId && this.humanEscalationRequested) {
-      console.log('🚨 Human escalation was requested - setting priority to URGENT');
+    // If human escalation or demo was requested, toggle priority to urgent
+    if (result.success && this.chatwootConversationId && (this.humanEscalationRequested || this.demoRequested)) {
+      const reason = this.demoRequested ? 'Demo requested' : 'Human escalation';
+      console.log(`🚨 ${reason} - setting priority to URGENT`);
       await this.togglePriorityUrgent();
     }
     

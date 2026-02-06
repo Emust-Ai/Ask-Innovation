@@ -659,9 +659,11 @@
       switch (message.type) {
         case 'status':
           if (message.status === 'ready') {
-            setStatus('ready', 'Ready - Click mic to speak');
+            setStatus('ready', 'Listening... (speak anytime)');
             micBtn.disabled = false;
             micBtn.classList.remove('disabled');
+            // Auto-start continuous audio streaming for barge-in support
+            startContinuousAudio();
           } else if (message.status === 'disconnected') {
             cleanup();
           }
@@ -707,25 +709,35 @@
       }
     }
 
+    let isMuted = false;
+    let continuousAudioStarted = false;
+
     async function toggleMic() {
-      if (isRecording) {
-        stopRecording();
+      // Toggle mute/unmute for continuous audio
+      isMuted = !isMuted;
+      if (isMuted) {
+        micBtn.classList.remove('active');
+        micBtn.innerHTML = '<i class="material-icons">mic_off</i>';
+        setStatus('ready', 'Muted - Click to unmute');
       } else {
-        startRecording();
+        micBtn.classList.add('active');
+        micBtn.innerHTML = '<i class="material-icons">mic</i>';
+        setStatus('ready', 'Listening... (speak anytime)');
       }
     }
 
-    async function startRecording() {
-      if (!mediaStream || !ws) return;
+    // Start continuous audio streaming for VAD and barge-in
+    async function startContinuousAudio() {
+      if (!mediaStream || !ws || continuousAudioStarted) return;
       
-      if (isAssistantSpeaking) {
-        stopPlayback();
+      // Ensure audio context is running
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
       }
-
+      
+      continuousAudioStarted = true;
       isRecording = true;
       micBtn.classList.add('active');
-      setStatus('listening', 'Listening...');
-      visualizer.classList.add('active');
 
       const audioInput = audioContext.createMediaStreamSource(mediaStream);
       
@@ -733,7 +745,68 @@
       const scriptProcessor = audioContext.createScriptProcessor(bufferSize, 1, 1);
       
       scriptProcessor.onaudioprocess = (e) => {
-        if (!isRecording || ws.readyState !== WebSocket.OPEN) return;
+        // Don't send audio if muted or websocket not open
+        if (isMuted || ws.readyState !== WebSocket.OPEN) return;
+        
+        const inputData = e.inputBuffer.getChannelData(0);
+        
+        const targetSampleRate = 24000;
+        let processedData;
+        
+        if (audioContext.sampleRate !== targetSampleRate) {
+          const ratio = audioContext.sampleRate / targetSampleRate;
+          const newLength = Math.round(inputData.length / ratio);
+          processedData = new Float32Array(newLength);
+          for (let i = 0; i < newLength; i++) {
+            processedData[i] = inputData[Math.round(i * ratio)];
+          }
+        } else {
+          processedData = inputData;
+        }
+        
+        const pcm16 = new Int16Array(processedData.length);
+        for (let i = 0; i < processedData.length; i++) {
+          const s = Math.max(-1, Math.min(1, processedData[i]));
+          pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+        
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(pcm16.buffer)));
+        
+        ws.send(JSON.stringify({ type: 'audio', audio: base64 }));
+      };
+
+      audioInput.connect(scriptProcessor);
+      scriptProcessor.connect(audioContext.destination);
+      
+      audioWorklet = { scriptProcessor, audioInput };
+    }
+
+    async function startRecording() {
+      if (!mediaStream || !ws) return;
+      
+      // Stop playback when user starts speaking (barge-in)
+      if (isAssistantSpeaking) {
+        stopPlayback();
+      }
+
+      isRecording = true;
+      isMuted = false;
+      micBtn.classList.add('active');
+      micBtn.innerHTML = '<i class="material-icons">mic</i>';
+      setStatus('listening', 'Listening...');
+      visualizer.classList.add('active');
+
+      // If continuous audio already started, just unmute
+      if (continuousAudioStarted) return;
+
+      const audioInput = audioContext.createMediaStreamSource(mediaStream);
+      
+      const bufferSize = 4096;
+      const scriptProcessor = audioContext.createScriptProcessor(bufferSize, 1, 1);
+      
+      scriptProcessor.onaudioprocess = (e) => {
+        // Don't send audio if muted or websocket not open
+        if (isMuted || ws.readyState !== WebSocket.OPEN) return;
         
         const inputData = e.inputBuffer.getChannelData(0);
         
@@ -769,17 +842,11 @@
     }
 
     function stopRecording() {
-      isRecording = false;
+      // Just mute instead of stopping - keeps continuous audio active for barge-in
+      isMuted = true;
       micBtn.classList.remove('active');
-      if (!isAssistantSpeaking) {
-        setStatus('ready', 'Processing...');
-      }
-
-      if (audioWorklet) {
-        audioWorklet.scriptProcessor.disconnect();
-        audioWorklet.audioInput.disconnect();
-        audioWorklet = null;
-      }
+      micBtn.innerHTML = '<i class="material-icons">mic_off</i>';
+      setStatus('ready', 'Muted - Click to unmute');
     }
 
     function queueAudio(base64Audio) {
@@ -874,8 +941,19 @@
     }
 
     function cleanup() {
-      stopRecording();
+      // Reset continuous audio state
+      continuousAudioStarted = false;
+      isRecording = false;
+      isMuted = false;
+      
       stopPlayback();
+      
+      // Disconnect audio worklet
+      if (audioWorklet) {
+        audioWorklet.scriptProcessor.disconnect();
+        audioWorklet.audioInput.disconnect();
+        audioWorklet = null;
+      }
       
       if (mediaStream) {
         mediaStream.getTracks().forEach(track => track.stop());
@@ -897,6 +975,7 @@
       micBtn.disabled = true;
       micBtn.classList.add('disabled');
       micBtn.classList.remove('active');
+      micBtn.innerHTML = '<i class="material-icons">mic</i>';
       visualizer.classList.remove('active');
     }
 

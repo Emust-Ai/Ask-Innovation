@@ -85,7 +85,7 @@ export function handleWebBrowserWebSocket(connection, logger) {
         input_audio_transcription: {
           model: 'whisper-1',
           language: 'fr',
-          prompt: 'Vocabulaire: relais, borne de recharge, station, Carrefour, connecteur, RFID, wattzhub, véhicule électrique, recharge, câble, prise. Noms de lieux et stations de recharge en France.'
+          prompt: 'Transcription exacte. Ne pas inventer de texte. Vocabulaire: Ask Innovation, email, téléphone, entreprise, tickets, support client.'
         }
       }
     };
@@ -114,6 +114,11 @@ export function handleWebBrowserWebSocket(connection, logger) {
     
     logger.info(`Tool call received: ${name} with call_id: ${call_id}`);
     sendToClient({ type: 'tool_call', name, status: 'executing' });
+    
+    // Mark demo request for urgent priority in Chatwoot
+    if (name === 'priority_tool' && chatwootLogger) {
+      chatwootLogger.markDemoRequest();
+    }
     
     try {
       const args = JSON.parse(argsString);
@@ -191,13 +196,12 @@ export function handleWebBrowserWebSocket(connection, logger) {
         break;
 
       case 'input_audio_buffer.speech_started':
-        logger.info('User started speaking (Web Client)');
+        logger.info('User interrupted - cancelling response');
         sendToClient({ type: 'speech_started' });
-        // Cancel any ongoing response when user interrupts (only if there's an active response)
+        // Cancel any ongoing response when user interrupts
         if (isResponseActive && openAiWs?.readyState === WebSocket.OPEN) {
           openAiWs.send(JSON.stringify({ type: 'response.cancel' }));
           isResponseActive = false;
-          logger.info('Cancelled active OpenAI response due to user interruption');
         }
         break;
 
@@ -213,31 +217,22 @@ export function handleWebBrowserWebSocket(connection, logger) {
         break;
 
       case 'response.done':
-        console.log('DEBUG: response.done event received');
-        console.log('DEBUG: message.response?.output:', JSON.stringify(message.response?.output, null, 2));
+        isResponseActive = false;
         if (message.response?.output) {
           message.response.output.forEach(output => {
-            console.log('DEBUG: output.type:', output.type);
             if (output.type === 'message' && output.content) {
               output.content.forEach(content => {
-                console.log('DEBUG: content.type:', content.type);
-                // Handle both text and audio (with transcript) content
                 if (content.type === 'text') {
-                  logger.info(`Assistant (Web): ${content.text}`);
-                  if (chatwootLogger) {
-                    chatwootLogger.logAssistant(content.text);
-                  }
+                  logger.info(`Assistant: ${content.text}`);
+                  if (chatwootLogger) chatwootLogger.logAssistant(content.text);
                   sendToClient({ type: 'transcript', role: 'assistant', text: content.text });
                 } else if (content.type === 'audio' && content.transcript) {
-                  logger.info(`Assistant (Web): ${content.transcript}`);
-                  if (chatwootLogger) {
-                    chatwootLogger.logAssistant(content.transcript);
-                  }
+                  logger.info(`Assistant: ${content.transcript}`);
+                  if (chatwootLogger) chatwootLogger.logAssistant(content.transcript);
                   sendToClient({ type: 'transcript', role: 'assistant', text: content.transcript });
                 }
               });
             }
-            // Note: function_call is handled by response.function_call_arguments.done
           });
         }
         sendToClient({ type: 'response_done' });
@@ -264,8 +259,14 @@ export function handleWebBrowserWebSocket(connection, logger) {
         break;
 
       case 'error':
-        logger.error('OpenAI error:', message.error);
-        sendToClient({ type: 'error', message: message.error?.message || 'Unknown error' });
+        const errorMessage = message.error?.message || 'Unknown error';
+        // Filter out non-critical errors
+        if (errorMessage.includes('Cancellation failed') || errorMessage.includes('no active response')) {
+          logger.debug('Non-critical OpenAI error (can be ignored):', errorMessage);
+        } else {
+          logger.error('OpenAI error:', message.error);
+          sendToClient({ type: 'error', message: errorMessage });
+        }
         break;
 
       default:

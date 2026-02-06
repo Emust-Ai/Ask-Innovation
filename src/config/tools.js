@@ -12,26 +12,6 @@ console.log('N8N_BASE_URL configured as:', N8N_BASE_URL);
 export const TOOLS = [
   {
     type: 'function',
-    name: 'mcp_client_tool',
-    description: 'Query product knowledge base for specific information about Ask Innovation capabilities, pricing, technical specifications, integrations, or features. Use this when the user asks a specific question about what our AI solutions can do.',
-    parameters: {
-      type: 'object',
-      properties: {
-        query: {
-          type: 'string',
-          description: 'The specific question or topic to search for in the product knowledge base (e.g., "What languages do you support?", "Can you integrate with Zendesk?", "What is your pricing model?")'
-        },
-        category: {
-          type: 'string',
-          enum: ['capabilities', 'pricing', 'integrations', 'technical', 'case_studies', 'general'],
-          description: 'The category of information being requested'
-        }
-      },
-      required: ['query']
-    }
-  },
-  {
-    type: 'function',
     name: 'hubspot_tool',
     description: 'Save or update lead information in HubSpot CRM. Call this IMMEDIATELY when the user provides any contact information such as email, phone number, name, company name, or job role. Do not wait to collect all information - save whatever is provided right away.',
     parameters: {
@@ -70,7 +50,7 @@ export const TOOLS = [
           description: 'Current support tools or platforms they are using'
         }
       },
-      required: []
+      required: ["email"]
     }
   },
   {
@@ -149,7 +129,6 @@ export const TOOLS = [
 
 // Map tool names to their n8n webhook endpoints
 export const TOOL_ENDPOINTS = {
-  mcp_client_tool: '/mcp-client-query',
   hubspot_tool: '/hubspot-lead',
   priority_tool: '/priority-lead',
   status_tool: '/conversation-status'
