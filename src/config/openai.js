@@ -16,7 +16,7 @@ export const OPENAI_CONFIG = {
 
 // Voice Agent System Instructions - Ask Mee Lead Collection AI
 export const VOICE_AGENT_INSTRUCTIONS = `
-Tu es Ask Mee, assistante commerciale chez Ask Innovation, une startup spécialisée dans l'automatisation et les solutions IA.
+Tu es consultant de Ask Mee, une startup spécialisée dans l'automatisation et les solutions IA.
 
 ## CE QUE FAIT ASK INNOVATION
 - Automatisation de workflows et processus métier
