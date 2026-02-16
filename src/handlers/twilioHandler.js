@@ -132,7 +132,7 @@ export function handleTwilioWebSocket(connection, logger) {
       // Trigger OpenAI to continue the response
       openAiWs.send(JSON.stringify({ type: 'response.create' }));
       
-      // If priority (human escalation) tool was called successfully, mark for hang up after user says goodbye
+      // If priority (human escalation) tool was called successfully, log it
       if (name === 'priority' && result.success !== false) {
         logger.info(`Human callback requested for caller ${callerNumber}. Reason: ${args.reason || 'Not specified'}`);
         
@@ -140,41 +140,6 @@ export function handleTwilioWebSocket(connection, logger) {
         if (chatwootLogger) {
           chatwootLogger.markHumanEscalation();
         }
-        // Don't hang up immediately - wait for user to say goodbye
-        // The call will end when the WebSocket closes (user hangs up) or after a longer timeout as safety
-        setTimeout(async () => {
-          // Safety timeout - if call is still active after 60 seconds, end it
-          if (!isConversationClosed) {
-            logger.info('Safety timeout reached - ending call after human escalation');
-            
-            // Close Chatwoot logger first (only once)
-            if (chatwootLogger && !isConversationClosed) {
-              isConversationClosed = true;
-              await chatwootLogger.close();
-            }
-            
-            // Close OpenAI connection
-            if (openAiWs?.readyState === WebSocket.OPEN) {
-              openAiWs.close();
-            }
-            
-            // Use Twilio REST API to properly end the call
-            try {
-              const client = twilio(
-                process.env.TWILIO_ACCOUNT_SID,
-                process.env.TWILIO_AUTH_TOKEN
-              );
-              
-              await client.calls(callSid).update({
-                status: 'completed'
-              });
-              
-              logger.info(`Call ${callSid} ended via Twilio API after safety timeout`);
-            } catch (error) {
-              logger.error('Error ending call via Twilio API:', error);
-            }
-          }
-        }, 60000); // 60 seconds safety timeout - gives user time to say goodbye naturally
       }
       
     } catch (error) {
@@ -265,46 +230,6 @@ export function handleTwilioWebSocket(connection, logger) {
           logger.info(`User: ${message.transcript}`);
           if (chatwootLogger) {
             chatwootLogger.logUser(message.transcript);
-          }
-          
-          // Detect goodbye phrases to end the call
-          const transcript = message.transcript.toLowerCase();
-          const goodbyePhrases = ['au revoir', 'aurevoir', 'merci au revoir', 'bonne journée', 'bonne soirée', 'à bientôt', 'bye', 'goodbye', 'ciao', 'salut', 'merci beaucoup au revoir'];
-          const isGoodbye = goodbyePhrases.some(phrase => transcript.includes(phrase));
-          
-          if (isGoodbye) {
-            logger.info('Goodbye detected - will end call after AI response');
-            // Wait for AI to say goodbye back, then hang up
-            setTimeout(async () => {
-              logger.info('Ending call after goodbye');
-              
-              // Close Chatwoot logger first (only once)
-              if (chatwootLogger && !isConversationClosed) {
-                isConversationClosed = true;
-                await chatwootLogger.close();
-              }
-              
-              // Close OpenAI connection
-              if (openAiWs?.readyState === WebSocket.OPEN) {
-                openAiWs.close();
-              }
-              
-              // Use Twilio REST API to properly end the call
-              try {
-                const client = twilio(
-                  process.env.TWILIO_ACCOUNT_SID,
-                  process.env.TWILIO_AUTH_TOKEN
-                );
-                
-                await client.calls(callSid).update({
-                  status: 'completed'
-                });
-                
-                logger.info(`Call ${callSid} ended after goodbye`);
-              } catch (error) {
-                logger.error('Error ending call via Twilio API:', error);
-              }
-            }, 5000); // 5 seconds to let AI say goodbye back
           }
         }
         break;
