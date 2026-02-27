@@ -1,16 +1,16 @@
 // OpenAI Realtime API Configuration
 export const OPENAI_CONFIG = {
-  model: 'gpt-realtime',
-  voice: 'shimmer',
-  temperature: 0.7, // Higher for more natural, varied responses
-  max_response_output_tokens: 500, // Allow longer responses when needed
+  model: 'gpt-realtime-1.5',
+  voice: 'marin', // Warm, calm, and professional - closest to a real call center agent
+  temperature: 1, // Slightly higher for more natural, varied phrasing (less robotic)
+  max_response_output_tokens: 600, // Allow slightly longer responses for natural phrasing with filler/empathy
   turn_detection: {
     type: 'server_vad',
-    threshold: 0.5,
-    prefix_padding_ms: 300,
-    silence_duration_ms: 700,
-    create_response: true,
-    interrupt_response: true
+    threshold: 0.55, // Moderate - filters echo/noise but catches phone speech
+    prefix_padding_ms: 350, // Slightly more padding to avoid cutting off the start of words
+    silence_duration_ms: 700, // A bit more patience - real agents wait a beat before responding
+    create_response: true, // Ensure the model responds automatically after a turn.
+    interrupt_response: true // Allow users to barge in and interrupt the model.
   },
 };
 
