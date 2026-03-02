@@ -84,8 +84,7 @@ export function handleWebBrowserWebSocket(connection, logger) {
         tool_choice: 'auto',
         input_audio_transcription: {
           model: 'whisper-1',
-          language: 'fr',
-          prompt: 'Transcription exacte. Ne pas inventer de texte. Vocabulaire: Ask Innovation, email, téléphone, entreprise, tickets, support client.'
+          prompt: 'Accurate transcription. Do not invent text. Vocabulary: Ask Innovation, Ask Mee, email, phone, company, tickets, customer support, automatisation, chatbot, workflow.'
         }
       }
     };
