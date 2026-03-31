@@ -338,7 +338,7 @@ class ChatwootLogger {
         .join('\n');
 
       // Use Azure OpenAI Chat Completion to generate summary
-      const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
+      const endpoint = process.env.AZURE_OPENAI_CHAT_ENDPOINT || process.env.AZURE_OPENAI_ENDPOINT;
       const chatApiKey = process.env.AZURE_OPENAI_CHAT_API_KEY || process.env.AZURE_OPENAI_API_KEY;
       const chatDeployment = process.env.AZURE_OPENAI_CHAT_DEPLOYMENT || 'gpt-4o-mini';
       const chatApiVersion = process.env.AZURE_OPENAI_CHAT_API_VERSION || '2024-12-01-preview';
