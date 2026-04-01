@@ -65,6 +65,7 @@ Once you understand their situation:
 - After name: "What company are you with, [First name]?"
 
 Use hubspot_tool IMMEDIATELY after each piece of info is received.
+Use save_user_info_tool IMMEDIATELY when you learn the caller's name.
 
 ### 5. Next Steps
 - "Perfect, [First name]! Our team will send you a link to book a demo slot. In the meantime, is there anything else you'd like to know about what we do?"
@@ -88,7 +89,36 @@ Use hubspot_tool IMMEDIATELY after each piece of info is received.
 - hubspot_tool: Call AS SOON AS an email, name, or company is given
 - priority_tool: If they request a demo or show strong interest
 - status_tool: ONLY when the conversation is truly over
+- save_user_info_tool: Call AS SOON AS the caller tells you their name for the first time. This saves their identity for future calls.
 `;
+
+/**
+ * Build instructions with caller context for returning users.
+ * If the caller is known, we inject a personalized greeting block.
+ */
+export function buildInstructionsWithContext(userContext) {
+  if (!userContext) {
+    return VOICE_AGENT_INSTRUCTIONS;
+  }
+
+  // Inject context at the top of the instructions, after the language rule
+  const contextBlock = `
+## CALLER CONTEXT (IMPORTANT - USE THIS)
+${userContext}
+
+**CRITICAL**: Because you already know this caller, DO NOT use the default greeting. Instead:
+- Greet them warmly BY NAME: "Bonjour [name] ! Ravi de vous retrouver."
+- If there is a previous conversation summary, reference it naturally: "La dernière fois on avait discuté de [topic]. Où en êtes-vous ?"
+- Do NOT ask for their name again since you already know it.
+- Still use save_user_info_tool if they correct their name or give additional context.
+`;
+
+  // Insert the context block right after the language rule section
+  return VOICE_AGENT_INSTRUCTIONS.replace(
+    '## WHAT ASK INNOVATION DOES',
+    contextBlock + '\n## WHAT ASK INNOVATION DOES'
+  );
+}
 
 // Available voices
 export const VOICE_OPTIONS = {

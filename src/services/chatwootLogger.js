@@ -29,6 +29,13 @@ class ChatwootLogger {
     this.chatwootConversationId = null;
     this.humanEscalationRequested = false; // Track if human agent was requested
     this.demoRequested = false; // Track if demo was requested
+    this.contactName = null; // Real name of the caller (set from user context)
+  }
+
+  // Set the real contact name (called when user provides their name)
+  setContactName(name) {
+    this.contactName = name;
+    console.log(`📛 Contact name set: ${name}`);
   }
 
   // Mark that human escalation was requested
@@ -138,7 +145,10 @@ class ChatwootLogger {
       // Extract phone number from sessionId (format: twilio-+33185412867 or web-123456)
       const isWebSession = this.sessionId.startsWith('web-');
       const phoneNumber = isWebSession ? null : this.sessionId.replace('twilio-', '');
-      const contactName = isWebSession ? `Web Visitor ${this.sessionId.replace('web-', '')}` : phoneNumber;
+      // Use real name if available, otherwise fall back to phone number or web visitor ID
+      const contactName = this.contactName 
+        ? this.contactName 
+        : (isWebSession ? `Web Visitor ${this.sessionId.replace('web-', '')}` : phoneNumber);
 
       // Step 1: Create or get a contact
       console.log('📍 Step 1: Creating/Getting contact...');
@@ -199,14 +209,16 @@ class ChatwootLogger {
               contactId = searchResponse.data.payload[0].id;
               console.log(`✅ Found existing contact with ID: ${contactId}`);
             
-              // Update contact to ensure phone number is stored (only for Twilio sessions)
-              if (phoneNumber) {
+              // Update contact to ensure phone number and name are stored
+              if (phoneNumber || this.contactName) {
                 try {
+                  const updatePayload = {};
+                  if (phoneNumber) updatePayload.phone_number = phoneNumber;
+                  if (this.contactName) updatePayload.name = this.contactName;
+                  
                   await axios.put(
                     `${this.chatwootUrl}/api/v1/accounts/${this.chatwootAccountId}/contacts/${contactId}`,
-                    {
-                      phone_number: phoneNumber
-                    },
+                    updatePayload,
                     {
                       headers: {
                         'api_access_token': this.chatwootApiToken,

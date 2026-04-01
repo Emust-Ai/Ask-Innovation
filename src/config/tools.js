@@ -124,6 +124,25 @@ export const TOOLS = [
       },
       required: ['status', 'summary']
     }
+  },
+  {
+    type: 'function',
+    name: 'save_user_info_tool',
+    description: 'Save the caller\'s name and conversation context. Call this IMMEDIATELY when the user tells you their name for the first time during the call. This stores their identity so we can recognize them on future calls.',
+    parameters: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          description: 'The full name of the caller'
+        },
+        context: {
+          type: 'string',
+          description: 'Brief summary of what the caller needs or is discussing (e.g., "interested in chatbot automation for e-commerce")'
+        }
+      },
+      required: ['name']
+    }
   }
 ];
 
