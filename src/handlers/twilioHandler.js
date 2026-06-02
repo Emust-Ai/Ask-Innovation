@@ -6,12 +6,10 @@ import { executeN8nTool } from '../services/n8nService.js';
 import ChatwootLogger from '../services/chatwootLogger.js';
 import { lookupUser, saveUserName, saveConversationContext, getUserName, buildUserContextPrompt } from '../services/userContext.js';
 
-// Build Azure OpenAI Realtime WebSocket URL
-const getAzureRealtimeUrl = () => {
-  const endpoint = process.env.AZURE_OPENAI_ENDPOINT.replace('https://', '');
-  const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
-  const apiVersion = process.env.AZURE_OPENAI_API_VERSION || '2024-10-01-preview';
-  return `wss://${endpoint}/openai/realtime?api-version=${apiVersion}&deployment=${deployment}`;
+// Build OpenAI Realtime WebSocket URL
+const getOpenAIRealtimeUrl = () => {
+  const model = process.env.OPENAI_REALTIME_MODEL || OPENAI_CONFIG.model;
+  return `wss://api.openai.com/v1/realtime?model=${model}`;
 };
 
 export function handleTwilioWebSocket(connection, logger) {
@@ -27,19 +25,19 @@ export function handleTwilioWebSocket(connection, logger) {
   let userContext = null; // Stored context for returning callers
   let resolvedUserName = null; // The real name of the caller (from context or collected during call)
 
-  // Connect to Azure OpenAI Realtime API
+  // Connect to OpenAI Realtime API
   const connectToOpenAI = () => {
-    const azureUrl = getAzureRealtimeUrl();
-    logger.info(`Connecting to Azure OpenAI: ${azureUrl}`);
+    const realtimeUrl = getOpenAIRealtimeUrl();
+    logger.info(`Connecting to OpenAI Realtime: ${realtimeUrl}`);
     
-    openAiWs = new WebSocket(azureUrl, {
+    openAiWs = new WebSocket(realtimeUrl, {
       headers: {
-        'api-key': process.env.AZURE_OPENAI_API_KEY
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
       }
     });
 
     openAiWs.on('open', () => {
-      logger.info('Connected to Azure OpenAI Realtime API');
+      logger.info('Connected to OpenAI Realtime API');
       initializeSession();
     });
 
@@ -87,20 +85,31 @@ export function handleTwilioWebSocket(connection, logger) {
     const sessionConfig = {
       type: 'session.update',
       session: {
-        turn_detection: OPENAI_CONFIG.turn_detection,
-        input_audio_format: 'g711_ulaw',
-        output_audio_format: 'g711_ulaw',
-        voice: OPENAI_CONFIG.voice,
+        type: 'realtime',
+        audio: {
+          input: {
+            format: { type: 'audio/pcmu' },
+            transcription: {
+              model: 'gpt-4o-mini-transcribe',
+              language: 'fr',
+              prompt: 'Accurate transcription. Do not invent text. Vocabulary: Ask Innovation, Ask Mee, email, phone, company, tickets, customer support, automatisation, chatbot, workflow.'
+            },
+            turn_detection: {
+              ...OPENAI_CONFIG.turn_detection,
+              create_response: true,
+              interrupt_response: false
+            }
+          },
+          output: {
+            format: { type: 'audio/pcmu' },
+            voice: OPENAI_CONFIG.voice
+          }
+        },
         instructions: instructions,
-        modalities: ['text', 'audio'],
-        temperature: OPENAI_CONFIG.temperature,
-        max_response_output_tokens: OPENAI_CONFIG.max_response_output_tokens || 150,
+        output_modalities: ['audio'],
+        max_output_tokens: OPENAI_CONFIG.max_response_output_tokens || 'inf',
         tools: TOOLS,
-        tool_choice: 'auto',
-        input_audio_transcription: {
-          model: 'whisper-1',
-          prompt: 'Accurate transcription. Do not invent text. Vocabulary: Ask Innovation, Ask Mee, email, phone, company, tickets, customer support, automatisation, chatbot, workflow.'
-        }
+        tool_choice: 'auto'
       }
     };
 
@@ -215,7 +224,7 @@ export function handleTwilioWebSocket(connection, logger) {
   // Handle messages from OpenAI
   const handleOpenAiMessage = (message) => {
     // Log all message types for debugging
-    if (message.type !== 'response.audio.delta' && message.type !== 'input_audio_buffer.speech_started') {
+    if (message.type !== 'response.audio.delta' && message.type !== 'response.output_audio.delta' && message.type !== 'input_audio_buffer.speech_started') {
       logger.info(`OpenAI message: ${message.type}`);
     }
     
@@ -233,6 +242,7 @@ export function handleTwilioWebSocket(connection, logger) {
         break;
 
       case 'response.audio.delta':
+      case 'response.output_audio.delta':
         isResponseActive = true; // Mark that a response is being generated
         // Send audio immediately to Twilio - no buffering for lowest latency
         if (message.delta && streamSid && connection.socket.readyState === WebSocket.OPEN) {
@@ -245,6 +255,7 @@ export function handleTwilioWebSocket(connection, logger) {
         break;
 
       case 'response.audio.done':
+      case 'response.output_audio.done':
         logger.info('OpenAI audio response complete');
         // Send a mark event to ensure Twilio plays all buffered audio before we consider response complete
         if (streamSid && connection.socket.readyState === WebSocket.OPEN) {
@@ -279,6 +290,15 @@ export function handleTwilioWebSocket(connection, logger) {
           logger.info(`User: ${message.transcript}`);
           if (chatwootLogger) {
             chatwootLogger.logUser(message.transcript);
+          }
+        }
+        break;
+
+      case 'response.output_audio_transcript.done':
+        if (message.transcript) {
+          logger.info(`Assistant: ${message.transcript}`);
+          if (chatwootLogger) {
+            chatwootLogger.logAssistant(message.transcript);
           }
         }
         break;
