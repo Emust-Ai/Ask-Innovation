@@ -1,1 +1,53 @@
-{}
+{
+  "+33159030154": {
+    "name": "John",
+    "firstContact": "2026-06-10T15:52:02.894Z",
+    "lastContact": "2026-06-10T15:56:15.297Z",
+    "conversations": [
+      {
+        "date": "2026-06-10T15:52:19.464Z",
+        "summary": "📋 Intérêt: Intérêt pour solutions IA/chatbot\n✅ Action: Informations fournies",
+        "topics": [
+          "Mhm.",
+          "Salut, ça va ?",
+          "Salut, ça va ?"
+        ]
+      },
+      {
+        "date": "2026-06-10T15:52:54.247Z",
+        "summary": "📋 Intérêt: Intérêt pour solutions IA/chatbot\n✅ Action: Informations fournies",
+        "topics": [
+          "Bonjour, ça va ?",
+          "Je ne suis pas sûr."
+        ]
+      },
+      {
+        "date": "2026-06-10T15:53:53.799Z",
+        "summary": "📋 Intérêt: Intérêt pour solutions IA/chatbot\n✅ Action: Informations fournies",
+        "topics": [
+          "Allez, ça va."
+        ]
+      },
+      {
+        "date": "2026-06-10T15:54:30.212Z",
+        "summary": "📋 Intérêt: Intérêt pour solutions IA/chatbot\n✅ Action: Informations fournies",
+        "topics": [
+          "Salut, ça va ?"
+        ]
+      },
+      {
+        "date": "2026-06-10T15:55:13.623Z",
+        "summary": "📋 Intérêt: Exploration des solutions Ask Innovation\n✅ Action: Informations fournies",
+        "topics": []
+      },
+      {
+        "date": "2026-06-10T15:56:15.297Z",
+        "summary": "📋 Intérêt: Intérêt pour support client IA\n✅ Action: Email collecté",
+        "topics": [
+          "Salut.",
+          "Je ne suis pas sûr."
+        ]
+      }
+    ]
+  }
+}

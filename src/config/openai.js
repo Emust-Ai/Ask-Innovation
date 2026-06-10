@@ -1,8 +1,8 @@
 // OpenAI Realtime API Configuration
 export const OPENAI_CONFIG = {
   model: 'gpt-realtime-2',
-  voice: 'shimmer', // Warm, calm, and professional - closest to a real call center agent
-  temperature: 0.73, // Slightly higher for more natural, varied phrasing (less robotic)
+  voice: 'marin', // Warm, calm, and professional - closest to a real call center agent
+  temperature: 0.6, // Slightly higher for more natural, varied phrasing (less robotic)
   max_response_output_tokens: 'inf',
   turn_detection: {
     type: 'server_vad',
