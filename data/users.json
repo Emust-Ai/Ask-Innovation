@@ -1,1 +1,21 @@
-{}
+{
+  "+33159030154": {
+    "name": null,
+    "firstContact": "2026-06-29T13:25:57.345Z",
+    "lastContact": "2026-06-29T13:36:11.873Z",
+    "conversations": [
+      {
+        "date": "2026-06-29T13:25:57.345Z",
+        "summary": "📋 Intérêt: Demande de contact humain\n✅ Action: Informations fournies",
+        "topics": [
+          "Oui, bonjour."
+        ]
+      },
+      {
+        "date": "2026-06-29T13:36:11.874Z",
+        "summary": "📋 Intérêt: Demande de contact humain\n✅ Action: Informations fournies",
+        "topics": []
+      }
+    ]
+  }
+}

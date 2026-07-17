@@ -1,8 +1,8 @@
 // OpenAI Realtime API Configuration
 export const OPENAI_CONFIG = {
-  model: 'gpt-realtime-1.5',
+  model: 'gpt-realtime-2.1',
   voice: 'cedar',
-  temperature: 1.2,
+  temperature: 0.7,
   max_response_output_tokens: 400,
   turn_detection: {
     type: 'server_vad',
